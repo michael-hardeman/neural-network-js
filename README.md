@@ -12,8 +12,7 @@ npm install
 npm run build
 ```
 
-This creates two files in the `dist/` directory:
-- `src/neural-network.js` - ES module for use with bundlers or modern browsers
+This creates a file in the `dist/` directory:
 - `dist/neural-network.js` - Browser-ready IIFE (Immediately Invoked Function Expression)
 
 ## Using the Build
@@ -30,6 +29,10 @@ This creates two files in the `dist/` directory:
 ```
 
 ### ES Module
+
+The source is naturally a single module
+- `src/neural-network.js` - ES module for use with bundlers or modern browsers
+
 Technically this is a module and you could attempt to use it in nodejs
 but currently it does not function as there are no GLES (WebGL 2.0)
 compatible npm packages. I have no plans currently to make this work.
