@@ -1,0 +1,22 @@
+{
+  "name": "neural-network",
+  "version": "1.0.0",
+  "description": "WebGL-accelerated neural network library with procedural API",
+  "type": "module",
+  "main": "dist/neural-network.js",
+  "module": "src/neural-network.js",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "devDependencies": {
+    "rollup": "^4.0.0"
+  },
+  "keywords": [
+    "neural-network",
+    "webgl",
+    "machine-learning",
+    "gpu"
+  ],
+  "license": "GPL-2.0-only"
+}
