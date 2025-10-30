@@ -89,6 +89,13 @@
             <button onclick="performanceTest()">Run Performance Test</button>
             <div id="performance-output" class="output"></div>
         </div>
+
+        <div class="test-section">
+            <h3>6. Debug: Check Gradients</h3>
+            <p>Verify backpropagation is computing gradients</p>
+            <button onclick="debugGradients()">Check Gradients</button>
+            <div id="debug-output" class="output"></div>
+        </div>
     </div>
 
     <script src="../dist/neural-network.js"></script>
@@ -138,14 +145,14 @@
 
             try {
                 const layerSpecs = [
-                    createLayerSpecification(2, 4, 'relu'),
-                    createLayerSpecification(4, 1, 'sigmoid')
+                    createLayerSpecification(2, 8, 'tanh'),
+                    createLayerSpecification(8, 1, 'sigmoid')
                 ];
 
                 network = initializeNetwork(context, layerSpecs);
 
                 log('network-output', 'Network created successfully!', 'success');
-                log('network-output', 'Architecture: 2 → 4 → 1');
+                log('network-output', 'Architecture: 2 → 8 → 1');
                 log('network-output', `Total layers: ${network.layers.length}`);
 
                 network.layers.forEach((layer, i) => {
@@ -216,11 +223,15 @@
                 });
 
                 const epochs = 5000;
-                const learningRate = 0.1;
+                const learningRate = 0.01;
 
                 log('training-output', `\nTraining for ${epochs} epochs with learning rate ${learningRate}...`);
+                log('training-output', 'Updating every 100 epochs...\n');
 
-                for (let epoch = 0; epoch < epochs; epoch++) {
+                // Use setTimeout to allow UI updates between epochs
+                let epoch = 0;
+
+                function trainEpoch() {
                     let totalLoss = 0;
 
                     for (const data of trainingData) {
@@ -236,27 +247,43 @@
 
                     const averageLoss = totalLoss / trainingData.length;
 
-                    if (epoch % 1000 === 0 || epoch === epochs - 1) {
+                    if (epoch % 100 === 0 || epoch === epochs - 1) {
                         log('training-output', `Epoch ${epoch}: Average Loss = ${averageLoss.toFixed(6)}`);
                     }
 
                     if (averageLoss < 0.001) {
                         log('training-output', `Converged at epoch ${epoch}!`, 'success');
-                        break;
+                        showResults();
+                        return;
+                    }
+
+                    epoch++;
+
+                    if (epoch < epochs) {
+                        // Continue training
+                        setTimeout(trainEpoch, 0);
+                    } else {
+                        // Training complete
+                        showResults();
                     }
                 }
 
-                log('training-output', '\nFinal outputs (after training):');
-                trainingData.forEach((data) => {
-                    const result = computeNetworkForward(context, network, data.input);
-                    const error = Math.abs(result[0] - data.target[0]);
-                    const correct = error < 0.1 ? '✓' : '✗';
-                    log('training-output',
-                        `[${data.input.join(', ')}] → ${result[0].toFixed(4)} (target: ${data.target[0]}) ${correct}`);
-                });
+                function showResults() {
+                    log('training-output', '\nFinal outputs (after training):');
+                    trainingData.forEach((data) => {
+                        const result = computeNetworkForward(context, network, data.input);
+                        const error = Math.abs(result[0] - data.target[0]);
+                        const correct = error < 0.1 ? '✓' : '✗';
+                        log('training-output',
+                            `[${data.input.join(', ')}] → ${result[0].toFixed(4)} (target: ${data.target[0]}) ${correct}`);
+                    });
 
-                log('training-output', '\n🎉 Training complete!', 'success');
-                log('training-output', 'Network learned XOR function using GPU-accelerated backpropagation');
+                    log('training-output', '\n🎉 Training complete!', 'success');
+                    log('training-output', 'Network learned XOR function using GPU-accelerated backpropagation');
+                }
+
+                // Start training
+                trainEpoch();
 
             } catch (error) {
                 log('training-output', `Error: ${error.message}`, 'error');
@@ -306,7 +333,79 @@
         };
 
         window.onload = function() {
+            const output = document.getElementById('init-output');
+            output.innerHTML = '';
             log('init-output', 'Page loaded. Click "Initialize Graphics Context" to start.');
+        };
+
+        window.debugGradients = function() {
+            const output = document.getElementById('debug-output');
+            output.innerHTML = '';
+
+            if (!network) {
+                log('debug-output', 'Please create a network first!', 'error');
+                return;
+            }
+
+            try {
+                log('debug-output', 'Checking GPU weight updates...', 'success');
+
+                const gl = context.gl;
+                const layer0 = network.resources[0];
+
+                // Read a few weights from GPU before training
+                gl.bindFramebuffer(gl.FRAMEBUFFER, layer0.framebuffers.weightsPrimary);
+                const beforeWeights = new Float32Array(4 * 4); // Read 4 pixels (16 floats)
+                gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.FLOAT, beforeWeights);
+
+                log('debug-output', 'Before training - First 4 weight values:');
+                log('debug-output', `  ${beforeWeights[0].toFixed(6)}, ${beforeWeights[4].toFixed(6)}, ${beforeWeights[8].toFixed(6)}, ${beforeWeights[12].toFixed(6)}`);
+
+                // Do one training step
+                const input = [0, 1];
+                const target = [1];
+                const lr = 0.1;
+
+                const lossBefore = trainNetworkSingleStep(context, network, input, target, lr);
+
+                // Read weights from GPU after training
+                // Need to check which buffer is active now
+                const activeWeights = layer0.weightsActive;
+                const activeFB = (activeWeights === layer0.weightsPrimary)
+                    ? layer0.framebuffers.weightsPrimary
+                    : layer0.framebuffers.weightsSecondary;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, activeFB);
+                const afterWeights = new Float32Array(4 * 4);
+                gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.FLOAT, afterWeights);
+
+                log('debug-output', '\nAfter training - First 4 weight values:');
+                log('debug-output', `  ${afterWeights[0].toFixed(6)}, ${afterWeights[4].toFixed(6)}, ${afterWeights[8].toFixed(6)}, ${afterWeights[12].toFixed(6)}`);
+
+                log('debug-output', `\nLoss: ${lossBefore.toFixed(6)}`);
+
+                // Check if any weights changed
+                let changed = false;
+                let maxChange = 0;
+                for (let i = 0; i < 16; i++) {
+                    const change = Math.abs(afterWeights[i] - beforeWeights[i]);
+                    maxChange = Math.max(maxChange, change);
+                    if (change > 0.000001) changed = true;
+                }
+
+                log('debug-output', `\nWeights changed on GPU: ${changed ? 'YES' : 'NO'}`);
+                log('debug-output', `Max change: ${maxChange.toFixed(8)}`);
+
+                if (!changed) {
+                    log('debug-output', 'ERROR: GPU weights are NOT changing!', 'error');
+                } else {
+                    log('debug-output', 'GPU weights are changing ✓', 'success');
+                }
+
+            } catch (error) {
+                log('debug-output', `Error: ${error.message}`, 'error');
+                console.error(error);
+            }
         };
     </script>
 </body>

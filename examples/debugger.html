@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Step-by-Step Debugger</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 0;
+            min-height: 800px;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 2px solid #dee2e6;
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        button {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        button.success {
+            background: #28a745;
+        }
+
+        button.success:hover {
+            background: #218838;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .status.info {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status.success {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .step-indicator {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 2px solid #667eea;
+        }
+
+        .step-indicator strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .visualization {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: 800px;
+        }
+
+        .viz-section {
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .viz-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .canvas-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .canvas-wrapper {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .canvas-wrapper h4 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+            text-align: center;
+        }
+
+        .canvas-wrapper canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+
+        .log-entry.error {
+            color: #f48771;
+        }
+
+        .log-entry.success {
+            color: #89d185;
+        }
+
+        .log-entry.info {
+            color: #6cb6ff;
+        }
+
+        .log-entry.warning {
+            color: #f9c859;
+        }
+
+        .value-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .value-box {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border: 2px solid #dee2e6;
+            text-align: center;
+        }
+
+        .value-box .label {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .value-box .value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #495057;
+            font-family: 'Courier New', monospace;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .metric-card .label {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .metric-card .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .processing {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Neural Network Debugger</h1>
+            <p>Step-by-step visualization of forward and backward propagation</p>
+        </div>
+
+        <div class="main-content">
+            <div class="controls">
+                <div class="control-section">
+                    <h3>🎯 Network Setup</h3>
+                    <button id="btn-init" onclick="initializeContext()">
+                        <span>⚡</span> Initialize WebGL
+                    </button>
+                    <button id="btn-create" onclick="createNetwork()" disabled>
+                        <span>🔧</span> Create Network
+                    </button>
+                    <div id="status-init" class="status info" style="display:none;"></div>
+                </div>
+
+                <div class="control-section">
+                    <h3>📊 Input Configuration</h3>
+                    <div class="input-group">
+                        <label>Input 1:</label>
+                        <input type="number" id="input1" value="1" step="0.1" min="0" max="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Input 2:</label>
+                        <input type="number" id="input2" value="0" step="0.1" min="0" max="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Target Output:</label>
+                        <input type="number" id="target" value="1" step="0.1" min="0" max="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Learning Rate:</label>
+                        <input type="number" id="learning-rate" value="0.5" step="0.1" min="0.01" max="2">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>▶️ Forward Pass</h3>
+                    <button id="btn-forward-1" onclick="forwardStep1()" disabled>
+                        <span>1️⃣</span> Upload Input
+                    </button>
+                    <button id="btn-forward-2" onclick="forwardStep2()" disabled>
+                        <span>2️⃣</span> Compute Layer 1
+                    </button>
+                    <button id="btn-forward-3" onclick="forwardStep3()" disabled>
+                        <span>3️⃣</span> Compute Layer 2
+                    </button>
+                    <button id="btn-forward-4" onclick="forwardStep4()" disabled>
+                        <span>4️⃣</span> Read Output
+                    </button>
+                </div>
+
+                <div class="control-section">
+                    <h3>◀️ Backward Pass</h3>
+                    <button id="btn-backward-1" onclick="backwardStep1()" disabled>
+                        <span>5️⃣</span> Upload Target
+                    </button>
+                    <button id="btn-backward-2" onclick="backwardStep2()" disabled>
+                        <span>6️⃣</span> Compute Output Deltas
+                    </button>
+                    <button id="btn-backward-3" onclick="backwardStep3()" disabled>
+                        <span>7️⃣</span> Compute Hidden Deltas
+                    </button>
+                    <button id="btn-backward-4" onclick="backwardStep4()" disabled>
+                        <span>8️⃣</span> Compute Gradients
+                    </button>
+                    <button id="btn-backward-5" onclick="backwardStep5()" disabled>
+                        <span>9️⃣</span> Update Weights
+                    </button>
+                </div>
+
+                <div class="control-section">
+                    <h3>🔄 Quick Actions</h3>
+                    <button id="btn-reset" onclick="resetSteps()" class="danger" disabled>
+                        <span>🔄</span> Reset Steps
+                    </button>
+                    <button id="btn-auto" onclick="autoRun()" class="success" disabled>
+                        <span>▶️</span> Auto Run All
+                    </button>
+                </div>
+
+                <div id="step-status" class="step-indicator" style="display:none;">
+                    <strong>Current Step:</strong>
+                    <span id="step-text">Not Started</span>
+                </div>
+            </div>
+
+            <div class="visualization">
+                <div class="viz-section">
+                    <h3>📈 Network Metrics</h3>
+                    <div class="metrics">
+                        <div class="metric-card">
+                            <div class="label">Network Output</div>
+                            <div class="value" id="metric-output">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="label">Target Value</div>
+                            <div class="value" id="metric-target">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="label">Error</div>
+                            <div class="value" id="metric-error">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="label">MSE Loss</div>
+                            <div class="value" id="metric-loss">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="viz-section">
+                    <h3>🖼️ Layer 1 Resources (2→4 ReLU)</h3>
+                    <div class="canvas-container" id="layer1-viz"></div>
+                </div>
+
+                <div class="viz-section">
+                    <h3>🖼️ Layer 2 Resources (4→1 Sigmoid)</h3>
+                    <div class="canvas-container" id="layer2-viz"></div>
+                </div>
+
+                <div class="viz-section">
+                    <h3>📝 Debug Log</h3>
+                    <div class="log-container" id="debug-log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../dist/neural-network.js"></script>
+    <script>
+        const {
+            initializeGraphicsContext,
+            initializeNetwork,
+            createLayerSpecification,
+        } = NeuralNetwork;
+
+        // Global state
+        let context = null;
+        let network = null;
+        let currentStep = 0;
+        let forwardOutput = null;
+
+        // Logging utility
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // Update step indicator
+        function updateStepIndicator(stepName) {
+            const indicator = document.getElementById('step-status');
+            const stepText = document.getElementById('step-text');
+            indicator.style.display = 'block';
+            stepText.textContent = stepName;
+        }
+
+        // Enable/disable buttons based on current step
+        function updateButtonStates() {
+            const buttons = {
+                'btn-init': currentStep === 0,
+                'btn-create': currentStep === 1,
+                'btn-forward-1': currentStep === 2,
+                'btn-forward-2': currentStep === 3,
+                'btn-forward-3': currentStep === 4,
+                'btn-forward-4': currentStep === 5,
+                'btn-backward-1': currentStep === 6,
+                'btn-backward-2': currentStep === 7,
+                'btn-backward-3': currentStep === 8,
+                'btn-backward-4': currentStep === 9,
+                'btn-backward-5': currentStep === 10,
+                'btn-reset': currentStep >= 2,
+                'btn-auto': currentStep >= 2,
+            };
+
+            Object.entries(buttons).forEach(([id, enabled]) => {
+                document.getElementById(id).disabled = !enabled;
+            });
+        }
+
+        // Initialize WebGL context
+        window.initializeContext = function() {
+            log('Initializing WebGL2 context...', 'info');
+            try {
+                context = initializeGraphicsContext();
+                log('✓ WebGL2 context initialized successfully', 'success');
+                log(`WebGL2 support: ${context.gl ? 'Yes' : 'No'}`, 'info');
+                log(`Programs compiled: ${Object.keys(context.programs).length}`, 'info');
+
+                const ext = context.gl.getExtension('EXT_color_buffer_float');
+                log(`Float texture support: ${ext ? 'Yes' : 'No'}`, ext ? 'success' : 'error');
+
+                document.getElementById('status-init').textContent = 'WebGL initialized';
+                document.getElementById('status-init').className = 'status success';
+                document.getElementById('status-init').style.display = 'block';
+
+                currentStep = 1;
+                updateButtonStates();
+                updateStepIndicator('WebGL Initialized');
+            } catch (error) {
+                log(`✗ Error initializing WebGL: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Create network
+        window.createNetwork = function() {
+            if (!context) {
+                log('✗ Context not initialized', 'error');
+                return;
+            }
+
+            log('Creating neural network (2→4→1)...', 'info');
+            try {
+                const layerSpecs = [
+                    createLayerSpecification(2, 4, 'relu'),
+                    createLayerSpecification(4, 1, 'sigmoid')
+                ];
+
+                network = initializeNetwork(context, layerSpecs);
+
+                log('✓ Network created successfully', 'success');
+                log(`Architecture: 2 → 4 (ReLU) → 1 (Sigmoid)`, 'info');
+                log(`Total layers: ${network.layers.length}`, 'info');
+
+                network.layers.forEach((layer, i) => {
+                    log(`Layer ${i}: ${layer.inputDimension}→${layer.outputDimension} (${layer.activationFunction})`, 'info');
+                });
+
+                // Log initial weights
+                logLayerWeights(0);
+                logLayerWeights(1);
+
+                // Create visualization canvases
+                createVisualizationCanvases();
+                visualizeAllTextures();
+
+                currentStep = 2;
+                updateButtonStates();
+                updateStepIndicator('Network Created - Ready for Forward Pass');
+            } catch (error) {
+                log(`✗ Error creating network: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Helper: Log layer weights
+        function logLayerWeights(layerIndex) {
+            const layer = network.layers[layerIndex];
+            const params = network.parameters[layerIndex];
+
+            log(`--- Layer ${layerIndex} Initial Parameters ---`, 'info');
+            log(`Weights shape: [${layer.inputDimension} × ${layer.outputDimension}]`, 'info');
+            log(`Weights sample: [${Array.from(params.weights.slice(0, 4)).map(w => w.toFixed(4)).join(', ')}...]`, 'info');
+            log(`Biases: [${Array.from(params.biases).map(b => b.toFixed(4)).join(', ')}]`, 'info');
+        }
+
+        // Helper: Create visualization canvases
+        function createVisualizationCanvases() {
+            const layer1Viz = document.getElementById('layer1-viz');
+            const layer2Viz = document.getElementById('layer2-viz');
+
+            layer1Viz.innerHTML = '';
+            layer2Viz.innerHTML = '';
+
+            // Layer 1 canvases
+            createCanvasElement(layer1Viz, 'layer1-weights', 'Weights (2×4)', 2, 4);
+            createCanvasElement(layer1Viz, 'layer1-biases', 'Biases (4)', 4, 1);
+            createCanvasElement(layer1Viz, 'layer1-outputs', 'Outputs (4)', 4, 1);
+            createCanvasElement(layer1Viz, 'layer1-deltas', 'Deltas (4)', 4, 1);
+            createCanvasElement(layer1Viz, 'layer1-gradients', 'Gradients (2×4)', 2, 4);
+
+            // Layer 2 canvases
+            createCanvasElement(layer2Viz, 'layer2-weights', 'Weights (4×1)', 4, 1);
+            createCanvasElement(layer2Viz, 'layer2-biases', 'Biases (1)', 1, 1);
+            createCanvasElement(layer2Viz, 'layer2-outputs', 'Outputs (1)', 1, 1);
+            createCanvasElement(layer2Viz, 'layer2-deltas', 'Deltas (1)', 1, 1);
+            createCanvasElement(layer2Viz, 'layer2-gradients', 'Gradients (4×1)', 4, 1);
+        }
+
+        // Helper: Create a canvas element
+        function createCanvasElement(parent, id, title, width, height) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'canvas-wrapper';
+
+            const heading = document.createElement('h4');
+            heading.textContent = title;
+            wrapper.appendChild(heading);
+
+            const canvas = document.createElement('canvas');
+            canvas.id = id;
+            canvas.width = width * 50;
+            canvas.height = height * 50;
+            wrapper.appendChild(canvas);
+
+            parent.appendChild(wrapper);
+        }
+
+        // Helper: Visualize a texture on a canvas
+        function visualizeTexture(canvasId, texture, width, height, label) {
+            if (!texture) {
+                log(`Cannot visualize ${label}: texture is null`, 'warning');
+                return;
+            }
+
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                log(`Canvas ${canvasId} not found`, 'warning');
+                return;
+            }
+
+            const gl = context.gl;
+            const fb = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+            const pixels = new Float32Array(width * height * 4);
+            gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels);
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.deleteFramebuffer(fb);
+
+            // Draw on canvas
+            const ctx = canvas.getContext('2d');
+            const cellWidth = canvas.width / width;
+            const cellHeight = canvas.height / height;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const value = pixels[idx];
+
+                    // Color mapping: negative=red, zero=white, positive=blue
+                    let r, g, b;
+                    if (value < 0) {
+                        const intensity = Math.min(Math.abs(value), 1);
+                        r = 255;
+                        g = Math.floor(255 * (1 - intensity));
+                        b = Math.floor(255 * (1 - intensity));
+                    } else {
+                        const intensity = Math.min(value, 1);
+                        r = Math.floor(255 * (1 - intensity));
+                        g = Math.floor(255 * (1 - intensity));
+                        b = 255;
+                    }
+
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+
+                    // Draw value text
+                    ctx.fillStyle = 'black';
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(
+                        value.toFixed(3),
+                        x * cellWidth + cellWidth / 2,
+                        y * cellHeight + cellHeight / 2
+                    );
+                }
+            }
+
+            // Draw grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= width; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * cellWidth, 0);
+                ctx.lineTo(x * cellWidth, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= height; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * cellHeight);
+                ctx.lineTo(canvas.width, y * cellHeight);
+                ctx.stroke();
+            }
+        }
+
+        // Visualize all network textures
+        function visualizeAllTextures() {
+            if (!network) return;
+
+            // Layer 1
+            const layer1 = network.layers[0];
+            const res1 = network.resources[0];
+            visualizeTexture('layer1-weights', res1.weightsActive, layer1.inputDimension, layer1.outputDimension, 'Layer 1 Weights');
+            visualizeTexture('layer1-biases', res1.biasesActive, layer1.outputDimension, 1, 'Layer 1 Biases');
+            visualizeTexture('layer1-outputs', res1.outputs, layer1.outputDimension, 1, 'Layer 1 Outputs');
+            visualizeTexture('layer1-deltas', res1.deltasActive, layer1.outputDimension, 1, 'Layer 1 Deltas');
+            visualizeTexture('layer1-gradients', res1.weightGradients, layer1.inputDimension, layer1.outputDimension, 'Layer 1 Gradients');
+
+            // Layer 2
+            const layer2 = network.layers[1];
+            const res2 = network.resources[1];
+            visualizeTexture('layer2-weights', res2.weightsActive, layer2.inputDimension, layer2.outputDimension, 'Layer 2 Weights');
+            visualizeTexture('layer2-biases', res2.biasesActive, layer2.outputDimension, 1, 'Layer 2 Biases');
+            visualizeTexture('layer2-outputs', res2.outputs, layer2.outputDimension, 1, 'Layer 2 Outputs');
+            visualizeTexture('layer2-deltas', res2.deltasActive, layer2.outputDimension, 1, 'Layer 2 Deltas');
+            visualizeTexture('layer2-gradients', res2.weightGradients, layer2.inputDimension, layer2.outputDimension, 'Layer 2 Gradients');
+        }
+
+        // Forward Step 1: Upload Input
+        window.forwardStep1 = function() {
+            const input1 = parseFloat(document.getElementById('input1').value);
+            const input2 = parseFloat(document.getElementById('input2').value);
+            const inputValues = [input1, input2];
+
+            log('=== STEP 1: Upload Input ===', 'info');
+            log(`Input values: [${inputValues.join(', ')}]`, 'info');
+
+            try {
+                const gl = context.gl;
+                if (!network.inputTexture || network.inputDimension !== inputValues.length) {
+                    network.inputDimension = inputValues.length;
+                    network.inputTexture = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D, network.inputTexture);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, inputValues.length, 1, 0, gl.RGBA, gl.FLOAT, null);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                }
+
+                const textureData = new Float32Array(inputValues.length * 4);
+                for (let i = 0; i < inputValues.length; i++) {
+                    textureData[i * 4] = inputValues[i];
+                }
+
+                gl.bindTexture(gl.TEXTURE_2D, network.inputTexture);
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, inputValues.length, 1, gl.RGBA, gl.FLOAT, textureData);
+
+                log('✓ Input uploaded to GPU texture', 'success');
+                log(`Texture dimensions: ${inputValues.length}×1`, 'info');
+
+                currentStep = 3;
+                updateButtonStates();
+                updateStepIndicator('Input Uploaded');
+            } catch (error) {
+                log(`✗ Error uploading input: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Forward Step 2: Compute Layer 1
+        window.forwardStep2 = function() {
+            log('=== STEP 2: Compute Layer 1 (2→4 ReLU) ===', 'info');
+
+            try {
+                const gl = context.gl;
+                const layer = network.layers[0];
+                const resources = network.resources[0];
+
+                log(`Computing: input[2] × weights[2×4] + biases[4]`, 'info');
+                log(`Activation: ReLU (max(0, x))`, 'info');
+
+                gl.useProgram(context.programs.forwardPropagation);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, resources.framebuffers.outputs);
+                gl.viewport(0, 0, layer.outputDimension, 1);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, network.inputTexture);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, resources.weightsActive);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, resources.biasesActive);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'inputValues'), 0);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'weights'), 1);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'biases'), 2);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'inputDimension'), layer.inputDimension);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'activationFunction'), layer.activationCode);
+
+                // Render quad
+                gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                const positionLocation = gl.getAttribLocation(context.programs.forwardPropagation, 'position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                log('✓ Layer 1 forward pass complete', 'success');
+
+                // Read and log outputs
+                const fb = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resources.outputs, 0);
+                const pixels = new Float32Array(layer.outputDimension * 4);
+                gl.readPixels(0, 0, layer.outputDimension, 1, gl.RGBA, gl.FLOAT, pixels);
+                gl.deleteFramebuffer(fb);
+
+                const outputs = Array.from({length: layer.outputDimension}, (_, i) => pixels[i * 4]);
+                log(`Layer 1 outputs: [${outputs.map(v => v.toFixed(4)).join(', ')}]`, 'success');
+
+                visualizeAllTextures();
+
+                currentStep = 4;
+                updateButtonStates();
+                updateStepIndicator('Layer 1 Computed');
+            } catch (error) {
+                log(`✗ Error computing layer 1: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Forward Step 3: Compute Layer 2
+        window.forwardStep3 = function() {
+            log('=== STEP 3: Compute Layer 2 (4→1 Sigmoid) ===', 'info');
+
+            try {
+                const gl = context.gl;
+                const layer = network.layers[1];
+                const resources = network.resources[1];
+                const prevResources = network.resources[0];
+
+                log(`Computing: layer1_output[4] × weights[4×1] + biases[1]`, 'info');
+                log(`Activation: Sigmoid (1/(1+e^-x))`, 'info');
+
+                gl.useProgram(context.programs.forwardPropagation);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, resources.framebuffers.outputs);
+                gl.viewport(0, 0, layer.outputDimension, 1);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, prevResources.outputs);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, resources.weightsActive);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, resources.biasesActive);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'inputValues'), 0);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'weights'), 1);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'biases'), 2);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'inputDimension'), layer.inputDimension);
+                gl.uniform1i(gl.getUniformLocation(context.programs.forwardPropagation, 'activationFunction'), layer.activationCode);
+
+                // Render quad
+                gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                const positionLocation = gl.getAttribLocation(context.programs.forwardPropagation, 'position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                log('✓ Layer 2 forward pass complete', 'success');
+
+                // Read and log outputs
+                const fb = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resources.outputs, 0);
+                const pixels = new Float32Array(layer.outputDimension * 4);
+                gl.readPixels(0, 0, layer.outputDimension, 1, gl.RGBA, gl.FLOAT, pixels);
+                gl.deleteFramebuffer(fb);
+
+                forwardOutput = pixels[0];
+                log(`Layer 2 output (network output): ${forwardOutput.toFixed(6)}`, 'success');
+
+                visualizeAllTextures();
+
+                currentStep = 5;
+                updateButtonStates();
+                updateStepIndicator('Layer 2 Computed');
+            } catch (error) {
+                log(`✗ Error computing layer 2: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Forward Step 4: Read Output
+        window.forwardStep4 = function() {
+            log('=== STEP 4: Read Final Output ===', 'info');
+
+            const target = parseFloat(document.getElementById('target').value);
+            const error = Math.abs(forwardOutput - target);
+            const mse = error * error;
+
+            log(`Network output: ${forwardOutput.toFixed(6)}`, 'success');
+            log(`Target value: ${target.toFixed(6)}`, 'info');
+            log(`Error: ${error.toFixed(6)}`, error < 0.1 ? 'success' : 'warning');
+            log(`MSE Loss: ${mse.toFixed(6)}`, 'info');
+
+            // Update metrics display
+            document.getElementById('metric-output').textContent = forwardOutput.toFixed(4);
+            document.getElementById('metric-target').textContent = target.toFixed(4);
+            document.getElementById('metric-error').textContent = error.toFixed(4);
+            document.getElementById('metric-loss').textContent = mse.toFixed(6);
+
+            currentStep = 6;
+            updateButtonStates();
+            updateStepIndicator('Forward Pass Complete - Ready for Backward Pass');
+        };
+
+        // Backward Step 1: Upload Target
+        window.backwardStep1 = function() {
+            const target = parseFloat(document.getElementById('target').value);
+
+            log('=== STEP 5: Upload Target Value ===', 'info');
+            log(`Target value: ${target}`, 'info');
+
+            try {
+                const gl = context.gl;
+                if (!network.targetTexture || network.targetDimension !== 1) {
+                    network.targetDimension = 1;
+                    network.targetTexture = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D, network.targetTexture);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, null);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                }
+
+                const textureData = new Float32Array([target, 0, 0, 0]);
+                gl.bindTexture(gl.TEXTURE_2D, network.targetTexture);
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 1, gl.RGBA, gl.FLOAT, textureData);
+
+                log('✓ Target uploaded to GPU texture', 'success');
+
+                currentStep = 7;
+                updateButtonStates();
+                updateStepIndicator('Target Uploaded');
+            } catch (error) {
+                log(`✗ Error uploading target: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Backward Step 2: Compute Output Deltas
+        window.backwardStep2 = function() {
+            log('=== STEP 6: Compute Output Layer Deltas ===', 'info');
+            log('Output layer uses Sigmoid activation', 'info');
+            log('Delta = (output - target) * sigmoid_derivative(output)', 'info');
+            log('sigmoid_derivative(y) = y * (1 - y)', 'info');
+
+            try {
+                const gl = context.gl;
+                const layerIndex = 1; // Output layer
+                const layer = network.layers[layerIndex];
+                const resources = network.resources[layerIndex];
+
+                const currentDeltas = resources.deltasActive;
+                const targetDeltas = (currentDeltas === resources.deltasPrimary)
+                    ? resources.deltasSecondary
+                    : resources.deltasPrimary;
+                const targetFramebuffer = (targetDeltas === resources.deltasPrimary)
+                    ? resources.framebuffers.deltasPrimary
+                    : resources.framebuffers.deltasSecondary;
+
+                gl.useProgram(context.programs.backwardPropagation);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, targetFramebuffer);
+                gl.viewport(0, 0, layer.outputDimension, 1);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'isOutputLayer'), 1);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'activationFunction'), layer.activationCode);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'nextLayerDimension'), 0);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, resources.outputs);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, network.targetTexture);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'layerOutputs'), 0);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'targetValues'), 1);
+
+                // Render quad
+                gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                const positionLocation = gl.getAttribLocation(context.programs.backwardPropagation, 'position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                resources.deltasActive = targetDeltas;
+
+                log('✓ Output deltas computed', 'success');
+
+                // Read and log deltas
+                const fb = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resources.deltasActive, 0);
+                const pixels = new Float32Array(layer.outputDimension * 4);
+                gl.readPixels(0, 0, layer.outputDimension, 1, gl.RGBA, gl.FLOAT, pixels);
+                gl.deleteFramebuffer(fb);
+
+                const delta = pixels[0];
+                log(`Output delta: ${delta.toFixed(6)}`, 'info');
+                log(`This represents the error gradient at the output`, 'info');
+
+                visualizeAllTextures();
+
+                currentStep = 8;
+                updateButtonStates();
+                updateStepIndicator('Output Deltas Computed');
+            } catch (error) {
+                log(`✗ Error computing output deltas: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Backward Step 3: Compute Hidden Deltas
+        window.backwardStep3 = function() {
+            log('=== STEP 7: Compute Hidden Layer Deltas ===', 'info');
+            log('Hidden layer uses ReLU activation', 'info');
+            log('Delta = (nextLayerWeights^T * nextLayerDeltas) * relu_derivative(output)', 'info');
+            log('relu_derivative(y) = y > 0 ? 1 : 0', 'info');
+
+            try {
+                const gl = context.gl;
+                const layerIndex = 0; // Hidden layer
+                const layer = network.layers[layerIndex];
+                const resources = network.resources[layerIndex];
+                const nextResources = network.resources[layerIndex + 1];
+                const nextLayer = network.layers[layerIndex + 1];
+
+                const currentDeltas = resources.deltasActive;
+                const targetDeltas = (currentDeltas === resources.deltasPrimary)
+                    ? resources.deltasSecondary
+                    : resources.deltasPrimary;
+                const targetFramebuffer = (targetDeltas === resources.deltasPrimary)
+                    ? resources.framebuffers.deltasPrimary
+                    : resources.framebuffers.deltasSecondary;
+
+                gl.useProgram(context.programs.backwardPropagation);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, targetFramebuffer);
+                gl.viewport(0, 0, layer.outputDimension, 1);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'isOutputLayer'), 0);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'activationFunction'), layer.activationCode);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'nextLayerDimension'), nextLayer.outputDimension);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, resources.outputs);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, nextResources.deltasActive);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, nextResources.weightsActive);
+
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'layerOutputs'), 0);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'nextLayerDeltas'), 1);
+                gl.uniform1i(gl.getUniformLocation(context.programs.backwardPropagation, 'nextLayerWeights'), 2);
+
+                // Render quad
+                gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                const positionLocation = gl.getAttribLocation(context.programs.backwardPropagation, 'position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                resources.deltasActive = targetDeltas;
+
+                log('✓ Hidden layer deltas computed', 'success');
+
+                // Read and log deltas
+                const fb = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resources.deltasActive, 0);
+                const pixels = new Float32Array(layer.outputDimension * 4);
+                gl.readPixels(0, 0, layer.outputDimension, 1, gl.RGBA, gl.FLOAT, pixels);
+                gl.deleteFramebuffer(fb);
+
+                const deltas = Array.from({length: layer.outputDimension}, (_, i) => pixels[i * 4]);
+                log(`Hidden deltas: [${deltas.map(v => v.toFixed(6)).join(', ')}]`, 'info');
+
+                visualizeAllTextures();
+
+                currentStep = 9;
+                updateButtonStates();
+                updateStepIndicator('Hidden Deltas Computed');
+            } catch (error) {
+                log(`✗ Error computing hidden deltas: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Backward Step 4: Compute Gradients
+        window.backwardStep4 = function() {
+            log('=== STEP 8: Compute Weight Gradients ===', 'info');
+            log('Gradient[i,j] = input[i] * delta[j]', 'info');
+
+            try {
+                const gl = context.gl;
+
+                // Compute gradients for both layers
+                for (let layerIndex = 0; layerIndex < network.layers.length; layerIndex++) {
+                    const layer = network.layers[layerIndex];
+                    const resources = network.resources[layerIndex];
+
+                    const inputTexture = layerIndex === 0
+                        ? network.inputTexture
+                        : network.resources[layerIndex - 1].outputs;
+
+                    log(`Computing gradients for Layer ${layerIndex}...`, 'info');
+
+                    gl.useProgram(context.programs.gradientComputation);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, resources.framebuffers.weightGradients);
+                    gl.viewport(0, 0, layer.inputDimension, layer.outputDimension);
+
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, resources.deltasActive);
+
+                    gl.uniform1i(gl.getUniformLocation(context.programs.gradientComputation, 'layerInputs'), 0);
+                    gl.uniform1i(gl.getUniformLocation(context.programs.gradientComputation, 'layerDeltas'), 1);
+
+                    // Render quad
+                    gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                    const positionLocation = gl.getAttribLocation(context.programs.gradientComputation, 'position');
+                    gl.enableVertexAttribArray(positionLocation);
+                    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                    log(`✓ Layer ${layerIndex} gradients computed`, 'success');
+
+                    // Read and log gradient sample
+                    const fb = gl.createFramebuffer();
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resources.weightGradients, 0);
+                    const pixels = new Float32Array(layer.inputDimension * layer.outputDimension * 4);
+                    gl.readPixels(0, 0, layer.inputDimension, layer.outputDimension, gl.RGBA, gl.FLOAT, pixels);
+                    gl.deleteFramebuffer(fb);
+
+                    const sampleGradients = Array.from({length: Math.min(4, pixels.length/4)}, (_, i) => pixels[i * 4]);
+                    log(`Layer ${layerIndex} gradient sample: [${sampleGradients.map(v => v.toFixed(6)).join(', ')}...]`, 'info');
+                }
+
+                visualizeAllTextures();
+
+                currentStep = 10;
+                updateButtonStates();
+                updateStepIndicator('Gradients Computed');
+            } catch (error) {
+                log(`✗ Error computing gradients: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Backward Step 5: Update Weights
+        window.backwardStep5 = function() {
+            const learningRate = parseFloat(document.getElementById('learning-rate').value);
+
+            log('=== STEP 9: Update Weights and Biases ===', 'info');
+            log(`Learning rate: ${learningRate}`, 'info');
+            log('Update rule: weight_new = weight_old - learning_rate * gradient', 'info');
+
+            try {
+                const gl = context.gl;
+
+                for (let layerIndex = 0; layerIndex < network.layers.length; layerIndex++) {
+                    const layer = network.layers[layerIndex];
+                    const resources = network.resources[layerIndex];
+
+                    log(`Updating Layer ${layerIndex} parameters...`, 'info');
+
+                    // Update weights
+                    const currentWeights = resources.weightsActive;
+                    const targetWeights = (currentWeights === resources.weightsPrimary)
+                        ? resources.weightsSecondary
+                        : resources.weightsPrimary;
+                    const targetWeightsFB = (targetWeights === resources.weightsPrimary)
+                        ? resources.framebuffers.weightsPrimary
+                        : resources.framebuffers.weightsSecondary;
+
+                    gl.useProgram(context.programs.weightUpdate);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, targetWeightsFB);
+                    gl.viewport(0, 0, layer.inputDimension, layer.outputDimension);
+
+                    gl.uniform1f(gl.getUniformLocation(context.programs.weightUpdate, 'learningRate'), learningRate);
+
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, currentWeights);
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, resources.weightGradients);
+
+                    gl.uniform1i(gl.getUniformLocation(context.programs.weightUpdate, 'weights'), 0);
+                    gl.uniform1i(gl.getUniformLocation(context.programs.weightUpdate, 'gradients'), 1);
+
+                    // Render quad
+                    gl.bindBuffer(gl.ARRAY_BUFFER, context.quadBuffer);
+                    const positionLocation = gl.getAttribLocation(context.programs.weightUpdate, 'position');
+                    gl.enableVertexAttribArray(positionLocation);
+                    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                    resources.weightsActive = targetWeights;
+
+                    // Update biases
+                    const currentBiases = resources.biasesActive;
+                    const targetBiases = (currentBiases === resources.biasesPrimary)
+                        ? resources.biasesSecondary
+                        : resources.biasesPrimary;
+                    const targetBiasesFB = (targetBiases === resources.biasesPrimary)
+                        ? resources.framebuffers.biasesPrimary
+                        : resources.framebuffers.biasesSecondary;
+
+                    gl.useProgram(context.programs.weightUpdate);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, targetBiasesFB);
+                    gl.viewport(0, 0, layer.outputDimension, 1);
+
+                    gl.uniform1f(gl.getUniformLocation(context.programs.weightUpdate, 'learningRate'), learningRate);
+
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, currentBiases);
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, resources.deltasActive);
+
+                    gl.uniform1i(gl.getUniformLocation(context.programs.weightUpdate, 'weights'), 0);
+                    gl.uniform1i(gl.getUniformLocation(context.programs.weightUpdate, 'gradients'), 1);
+
+                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                    resources.biasesActive = targetBiases;
+
+                    log(`✓ Layer ${layerIndex} parameters updated`, 'success');
+                }
+
+                visualizeAllTextures();
+
+                log('🎉 Training step complete!', 'success');
+                log('Network parameters have been updated based on the error', 'success');
+
+                currentStep = 2; // Reset to allow another iteration
+                updateButtonStates();
+                updateStepIndicator('Training Step Complete - Ready for Next Iteration');
+            } catch (error) {
+                log(`✗ Error updating weights: ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        // Reset steps
+        window.resetSteps = function() {
+            log('--- Resetting to start of forward pass ---', 'warning');
+            currentStep = 2;
+            updateButtonStates();
+            updateStepIndicator('Reset - Ready for Forward Pass');
+
+            // Clear metrics
+            document.getElementById('metric-output').textContent = '-';
+            document.getElementById('metric-error').textContent = '-';
+            document.getElementById('metric-loss').textContent = '-';
+        };
+
+        // Auto run all steps
+        window.autoRun = async function() {
+            log('🚀 Starting automatic execution...', 'info');
+
+            const steps = [
+                forwardStep1,
+                forwardStep2,
+                forwardStep3,
+                forwardStep4,
+                backwardStep1,
+                backwardStep2,
+                backwardStep3,
+                backwardStep4,
+                backwardStep5
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                steps[i]();
+            }
+
+            log('✓ Automatic execution complete!', 'success');
+        };
+
+        // Initialize on load
+        window.onload = function() {
+            log('Neural Network Debugger loaded', 'info');
+            log('Click "Initialize WebGL" to begin', 'info');
+            updateButtonStates();
+        };
+    </script>
+</body>
+</html>

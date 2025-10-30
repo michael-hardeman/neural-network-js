@@ -234,37 +234,10 @@ function applyLinear(x) {
  * @returns {Object} Initialized graphics context
  * @throws {Error} If WebGL2 is not supported
  */
-function initializeGraphicsContext(canvasOrOptions = null) {
+function initializeGraphicsContext() {
     const context = createGraphicsContext();
-
-    let canvas;
-
-    // Check if running in Node.js
-    if (typeof window === 'undefined') {
-        // Node.js environment
-        if (!canvasOrOptions) {
-            throw new Error('In Node.js environment, you must provide a WebGL context or canvas');
-        }
-        // Allow passing a context directly or an object with getContext
-        if (typeof canvasOrOptions.getContext === 'function') {
-            canvas = canvasOrOptions;
-        } else {
-            // Assume it's already a WebGL context
-            context.gl = canvasOrOptions;
-        }
-    } else {
-        // Browser environment
-        if (canvasOrOptions instanceof HTMLCanvasElement) {
-            canvas = canvasOrOptions;
-        } else {
-            canvas = document.createElement('canvas');
-        }
-    }
-
-    // Get WebGL context if we have a canvas
-    if (canvas && !context.gl) {
-        context.gl = canvas.getContext('webgl2');
-    }
+    const canvas = document.createElement('canvas');
+    context.gl = canvas.getContext('webgl2');
 
     if (!context.gl) {
         throw new Error('WebGL2 not supported');
